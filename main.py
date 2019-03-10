@@ -1,106 +1,29 @@
 import cv2
-import os
-import numpy as np
 
-subjects = ["", "Person1_name", "Person2_name"]
+# Loading the cascades
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
 
-def detect_face(img):
+# Defining a function that will do the detections
+def detect(gray, frame):
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    for (x, y, w, h) in faces:
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_color = frame[y:y+h, x:x+w]
+        eyes = eye_cascade.detectMultiScale(roi_gray, 1.1, 3)
+        for (ex, ey, ew, eh) in eyes:
+            cv2.rectangle(roi_color, (ex, ey), (ex+ew, ey+eh), (0, 255, 0), 2)
+    return frame
 
- gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
- #face_cascade = cv2.CascadeClassifier('C:\\Users\\priya\\OneDrive\\Documents\\Minor Project\\lbp_cascade_frontalface.xml')
- face_cascade = cv2.CascadeClassifier('C:\\Users\\priya\\OneDrive\\Documents\\Minor Project\\lbp_cascade_frontalface.xml')
- faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5);
-
- if (len(faces) == 0):
-  return None, None
-
- (x, y, w, h) = faces[0]
- return gray[y:y+w, x:x+h], faces[0]
-
-def prepare_training_data(data_folder_path):
- 
- dirs = os.listdir(data_folder_path)
- 
- faces = []
- labels = []
-
- for dir_name in dirs:
- 
-  if not dir_name.startswith("s"):
-   continue;
- 
-  label = int(dir_name.replace("s", ""))
- 
-  subject_dir_path = data_folder_path + "/" + dir_name
-  subject_images_names = os.listdir(subject_dir_path)
- 
-  for image_name in subject_images_names:
- 
-   if image_name.startswith("."):
-    continue;
- 
-   image_path = subject_dir_path + "/" + image_name
-   image = cv2.imread(image_path)
- 
-   cv2.imshow("Training on image...", image)
-   cv2.waitKey(100)
- 
-   face, rect = detect_face(image)
- 
-   if face is not None:
-    faces.append(face)
-    labels.append(label)
- 
-  cv2.destroyAllWindows()
-  cv2.waitKey(1)
-  cv2.destroyAllWindows()
- 
-  return faces, labels
-
-print("Preparing data...")
-faces, labels = prepare_training_data("priya-aishh/dataset/training_data")
-print("Data prepared")
- 
-print("Total faces: ", len(faces))
-print("Total labels: ", len(labels))
-
-#train face recognizer
-face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-
-face_recognizer.train(faces, np.array(labels))
-
-#Prediction
-def draw_rectangle(img, rect):
- (x, y, w, h) = rect
- cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-def draw_text(img, text, x, y):
- cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 2)
- 
-def predict(test_img):
-
- img = test_img.copy()
- face, rect = detect_face(img) 
- label= face_recognizer.predict(face)
- label_text = subjects[label[0]] 
- draw_rectangle(img, rect)
- draw_text(img, label_text, rect[0], rect[1]-5)
- 
- return img
-
-print("Predicting images...")
- 
-test_img1 = cv2.imread("priya-aishh/dataset/testdata/test1.jpg")
-test_img2 = cv2.imread("priya-aishh/dataset/testdata/test2.jpg")
- 
-predicted_img1 = predict(test_img1)
-predicted_img2 = predict(test_img2)
-print("Prediction complete")
- 
-cv2.imshow(subjects[1], cv2.resize(predicted_img1, (400, 500)))
-cv2.imshow(subjects[2], cv2.resize(predicted_img2, (400, 500)))
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-cv2.waitKey(1)
+# Doing some Face Recognition with the webcam
+video_capture = cv2.VideoCapture(0)
+while True:
+    _, frame = video_capture.read()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    canvas = detect(gray, frame)
+    cv2.imshow('Video', canvas)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+video_capture.release()
 cv2.destroyAllWindows()
